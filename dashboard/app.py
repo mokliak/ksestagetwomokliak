@@ -17,7 +17,7 @@ import streamlit as st
 warnings.filterwarnings("ignore")
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
 DATA_DIR    = ROOT / "data"
 REPORTS_DIR = ROOT / "reports"
