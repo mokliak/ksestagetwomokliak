@@ -1,6 +1,6 @@
 # Ukraine Air Raid Alert Analysis
 
-Real alert data, real forecasting models, and a live dashboard — built to find out whether weather, news, and history can actually predict when and where the next air raid alert will hit.
+Real alert data, real forecasting models, and a live dashboard — built by an HEC Paris student to find out whether weather, news, and history can actually predict when and where the next air raid alert will hit.
 
 ---
 
@@ -62,6 +62,6 @@ Alerts logged under "Kyiv City" and "Kyivska oblast" are merged into one entry �
 
 ## Why I Built This
 
-This project pushed me past a single notebook — cleaning messy real-world data, wiring up multiple live APIs, training and honestly comparing forecasting models, and packaging all of it into something anyone can open and actually explore. I'm genuinely excited about bringing that same curiosity and follow-through to the KSE x HEC Paris program, and I'd love the chance to keep building things that turn data into something people can act on.
+I'm a student at HEC Paris, and this project is part of my application to a program at KSE. Building it pushed me well past a single notebook — wrangling messy real-world alert data, wiring up multiple live APIs, training and honestly comparing forecasting models against each other, and packaging the whole thing into something anyone can actually open and explore, not just read about. I'd be genuinely thrilled to bring that same curiosity, persistence, and hands-on approach to KSE, and I can't wait for the chance to keep learning and building there.
 
-— Andrii Mokliak
+— Andrii Mokliak, HEC Paris
