@@ -27,3 +27,4 @@ fastparquet>=2023.0
 # Notebooks
 jupyter>=1.0
 ipykernel>=6.28
+statsmodels>=0.14

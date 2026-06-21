@@ -184,8 +184,8 @@ def plot_rolling_trend(panel: pd.DataFrame, oblast: str, output_dir: Path):
 
 
 def plot_news_effect(panel: pd.DataFrame, output_dir: Path):
-    if "news_severity" not in panel.columns:
-        print("  No news features – skipping news effect plot")
+    if "news_severity" not in panel.columns or panel["news_severity"].nunique() <= 1:
+        print("  No usable news features – skipping news effect plot")
         return
     agg = (
         panel.groupby("date").agg(
@@ -210,7 +210,7 @@ def plot_news_effect(panel: pd.DataFrame, output_dir: Path):
     ax = axes[1]
     if "nato_visit" in agg.columns:
         grps = [agg[agg["nato_visit"]==v]["national_alerts"].dropna() for v in [0,1]]
-        ax.boxplot(grps, labels=["No visit","NATO/EU visit"], patch_artist=True,
+        ax.boxplot(grps, tick_labels=["No visit","NATO/EU visit"], patch_artist=True,
                    boxprops=dict(facecolor=P_LIGHT, color=P_MAIN),
                    medianprops=dict(color=P_WARM, lw=2))
         ax.set_ylabel("National alert count")
@@ -243,7 +243,7 @@ def plot_level_analysis(df_raw: pd.DataFrame, output_dir: Path):
 
 
 def run_all(df_raw_path, panel_path, output_dir: Path = Path("reports/figures")):
-    df_raw = pd.read_csv(df_raw_path, index_col=0)
+    df_raw = pd.read_csv(df_raw_path)
     df_raw.columns = df_raw.columns.str.lower().str.strip()
     df_raw["started_at"] = pd.to_datetime(df_raw["started_at"], utc=True, errors="coerce")
     if "duration_min" not in df_raw.columns and "finished_at" in df_raw.columns:

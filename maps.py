@@ -27,7 +27,7 @@ OBLAST_COORDS = {
     "Mykolaivska oblast":        (46.97, 31.99),
     "Dnipropetrovska oblast":    (48.46, 35.04),
     "Kharkivska oblast":         (49.99, 36.23),
-    "Kyivska oblast":            (50.45, 30.52),
+    "Kyiv and Kyiv oblast":      (50.45, 30.52),
     "Odeska oblast":             (46.47, 30.73),
     "Zaporizka oblast":          (47.84, 35.14),
     "Lvivska oblast":            (49.84, 24.03),
@@ -49,71 +49,76 @@ OBLAST_COORDS = {
     "Kirovohradska oblast":      (48.51, 32.27),
     "Luhanska oblast":           (48.57, 39.31),
     "Avtonomna Respublika Krym": (44.95, 34.12),
-    "Kyiv":                      (50.45, 30.52),
 }
 
 # ukrainealarm.com → normalised name map
 UA_TO_OBLAST = {v: v for v in OBLAST_COORDS}
 UA_TO_OBLAST.update({
-    "Миколаївська": "Mykolaivska oblast",
-    "Дніпропетровська": "Dnipropetrovska oblast",
-    "Харківська": "Kharkivska oblast",
-    "Київська": "Kyivska oblast",
-    "Одеська": "Odeska oblast",
-    "Запорізька": "Zaporizka oblast",
-    "Львівська": "Lvivska oblast",
-    "Донецька": "Donetska oblast",
-    "Херсонська": "Khersonska oblast",
-    "Полтавська": "Poltavska oblast",
-    "Сумська": "Sumska oblast",
-    "Чернігівська": "Chernihivska oblast",
-    "Житомирська": "Zhytomyrska oblast",
-    "Вінницька": "Vinnytska oblast",
-    "Черкаська": "Cherkaska oblast",
-    "Хмельницька": "Khmelnytska oblast",
-    "Рівненська": "Rivnenska oblast",
-    "Волинська": "Volynska oblast",
-    "Івано-Франківська": "Ivano-Frankivska oblast",
-    "Тернопільська": "Ternopilska oblast",
-    "Чернівецька": "Chernivetska oblast",
-    "Закарпатська": "Zakarpatska oblast",
-    "Кіровоградська": "Kirovohradska oblast",
-    "Луганська": "Luhanska oblast",
-    "Крим": "Avtonomna Respublika Krym",
+    "Миколаївська область": "Mykolaivska oblast",
+    "Дніпропетровська область": "Dnipropetrovska oblast",
+    "Харківська область": "Kharkivska oblast",
+    "Київська область": "Kyiv and Kyiv oblast",
+    "м. Київ": "Kyiv and Kyiv oblast",
+    "Одеська область": "Odeska oblast",
+    "Запорізька область": "Zaporizka oblast",
+    "Львівська область": "Lvivska oblast",
+    "Донецька область": "Donetska oblast",
+    "Херсонська область": "Khersonska oblast",
+    "Полтавська область": "Poltavska oblast",
+    "Сумська область": "Sumska oblast",
+    "Чернігівська область": "Chernihivska oblast",
+    "Житомирська область": "Zhytomyrska oblast",
+    "Вінницька область": "Vinnytska oblast",
+    "Черкаська область": "Cherkaska oblast",
+    "Хмельницька область": "Khmelnytska oblast",
+    "Рівненська область": "Rivnenska oblast",
+    "Волинська область": "Volynska oblast",
+    "Івано-Франківська область": "Ivano-Frankivska oblast",
+    "Тернопільська область": "Ternopilska oblast",
+    "Чернівецька область": "Chernivetska oblast",
+    "Закарпатська область": "Zakarpatska oblast",
+    "Кіровоградська область": "Kirovohradska oblast",
+    "Луганська область": "Luhanska oblast",
+    "Автономна Республіка Крим": "Avtonomna Respublika Krym",
 })
 
-ALARM_API = "https://api.ukrainealarm.com/api/v3/alerts"
+ALERTS_IN_UA_API = "https://api.alerts.in.ua/v1/alerts/active.json"
 
 
 def fetch_live_alerts(api_key: str = "") -> dict[str, bool]:
-    """Returns {oblast_name: is_active} dict."""
-    headers = {"Authorization": api_key} if api_key else {}
+    """Returns {oblast_name: is_active} dict, using alerts.in.ua."""
     try:
-        r = requests.get(ALARM_API, headers=headers, timeout=10)
+        r = requests.get(
+            ALERTS_IN_UA_API,
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
+            timeout=10,
+        )
         r.raise_for_status()
-        data = r.json()
+        data = r.json().get("alerts", [])
     except Exception as e:
         print(f"Live alert API unavailable ({e}); using empty state")
         data = []
 
     active = {}
     for entry in data:
-        ua_name = entry.get("regionName","")
+        if entry.get("location_type") != "oblast":
+            continue  # only care about oblast-level status for the map
+        ua_name = entry.get("location_oblast", "")
         en_name = UA_TO_OBLAST.get(ua_name, ua_name)
-        has_air = any(
-            a.get("type") in ("AIR","MISSILE","DRONE")
-            for a in entry.get("activeAlerts",[])
-        )
-        active[en_name] = has_air
+        is_air_raid = entry.get("alert_type") == "air_raid" and entry.get("finished_at") is None
+        active[en_name] = is_air_raid
     return active
 
 
 def live_alert_map(
     api_key: str = "",
     output_path: Path = Path("reports/live_alerts.html"),
+    active: dict | None = None,
 ):
     assert HAS_FOLIUM, "pip install folium"
-    active = fetch_live_alerts(api_key)
+    if active is None:
+        active = fetch_live_alerts(api_key)
+        
     m = folium.Map(location=[49.0,31.5], zoom_start=6, tiles="CartoDB positron")
 
     title = (

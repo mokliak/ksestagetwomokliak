@@ -51,6 +51,21 @@ FEATURE_COLS = [
 def _available(df: pd.DataFrame) -> list[str]:
     return [c for c in FEATURE_COLS if c in df.columns]
 
+WEATHER_FEATURES = ["wind_speed_max", "precipitation", "cloud_cover", "temperature", "high_wind"]
+NEWS_FEATURES    = ["news_severity", "nato_visit_bin", "peace_talks_bin"]
+
+def _select_top_features(panel: pd.DataFrame, target_col: str, features: list[str], top_n: int = 12) -> list[str]:
+    """Train a quick RF on all available features, return the top_n most important."""
+    sub = panel.dropna(subset=features + [target_col])
+    X, y = sub[features].values, sub[target_col].values
+    rf = RandomForestClassifier(
+        n_estimators=200, max_depth=8, min_samples_leaf=10,
+        class_weight="balanced", random_state=42, n_jobs=-1,
+    )
+    rf.fit(X, y)
+    fi = pd.Series(rf.feature_importances_, index=features).sort_values(ascending=False)
+    return fi.head(top_n).index.tolist()
+
 
 def _make_binary_target(panel: pd.DataFrame, horizon_days: int) -> pd.DataFrame:
     """1 if any alert occurs in this oblast within the next horizon_days days."""
@@ -58,7 +73,7 @@ def _make_binary_target(panel: pd.DataFrame, horizon_days: int) -> pd.DataFrame:
     panel[f"y_{horizon_days}d"] = (
         panel.groupby("oblast")["alert_count"]
         .transform(lambda x: x.shift(-horizon_days).rolling(horizon_days, min_periods=1).max())
-        .clip(upper=1).astype(int)
+        .clip(upper=1)
     )
     return panel
 
@@ -74,8 +89,11 @@ def train_classifier(
 
     panel = _make_binary_target(panel, horizon_days)
     target = f"y_{horizon_days}d"
-    features = _available(panel)
+    all_features = _available(panel)
+    features = _select_top_features(panel, target, all_features, top_n=12)
+    print(f"  Selected top {len(features)} features: {features}")
     sub = panel.dropna(subset=features + [target]).copy()
+
     X, y = sub[features].values, sub[target].values
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
@@ -126,6 +144,66 @@ def train_classifier(
     _plot_fi(results["random_forest"]["feature_importances"], horizon_days, output_dir)
     return results
 
+def train_comparison_models(
+    panel: pd.DataFrame,
+    base_features: list[str],
+    horizon_days: int = 1,
+    n_splits: int = 5,
+    output_dir: Path = Path("reports"),
+) -> dict:
+    """
+    Train 3 extra RF variants on top of the base 12 features:
+      - base + weather
+      - base + news
+      - base + weather + news
+    Compares CV AUC against the base model to see if each addition helps.
+    """
+    panel = _make_binary_target(panel, horizon_days)
+    target = f"y_{horizon_days}d"
+
+    variants = {
+        "base_plus_weather": base_features + [f for f in WEATHER_FEATURES if f in panel.columns],
+        "base_plus_news":    base_features + [f for f in NEWS_FEATURES if f in panel.columns],
+        "base_plus_both":    base_features + [f for f in WEATHER_FEATURES + NEWS_FEATURES if f in panel.columns],
+    }
+
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    results = {}
+
+    for name, feats in variants.items():
+        feats = list(dict.fromkeys(feats))  # dedupe, preserve order
+        sub = panel.dropna(subset=feats + [target]).copy()
+        X, y = sub[feats].values, sub[target].values
+
+        pipe = Pipeline([
+            ("sc", StandardScaler()),
+            ("clf", RandomForestClassifier(
+                n_estimators=300, max_depth=8, min_samples_leaf=10,
+                class_weight="balanced", random_state=42, n_jobs=-1,
+            )),
+        ])
+
+        fold_aucs = []
+        for tr, va in tscv.split(X):
+            pipe.fit(X[tr], y[tr])
+            fold_aucs.append(roc_auc_score(y[va], pipe.predict_proba(X[va])[:, 1]))
+        pipe.fit(X, y)
+
+        fi_series = pd.Series(
+            pipe.named_steps["clf"].feature_importances_, index=feats
+        ).sort_values(ascending=False)
+
+        print(f"  [{name}] {horizon_days}d horizon  CV AUC={np.mean(fold_aucs):.3f} (±{np.std(fold_aucs):.3f})")
+
+        results[name] = {
+            "pipeline":  pipe,
+            "cv_auc":    np.mean(fold_aucs),
+            "fold_aucs": fold_aucs,
+            "feature_importances": fi_series,
+            "features":  feats,
+        }
+
+    return results
 
 def _plot_auc(results, horizon_days, output_dir):
     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
@@ -214,6 +292,13 @@ def train_all(
     for label, h in [("1d", 1), ("7d", 7)]:
         print(f"\n── Horizon: {label} ──")
         all_results[label] = train_classifier(panel, h, output_dir=output_dir)
+
+    print("\n── Comparison models: weather / news / both (1d horizon) ──")
+    base_12 = all_results["1d"]["random_forest"]["features"]
+    all_results["comparison"] = train_comparison_models(
+        panel, base_features=base_12, horizon_days=1, output_dir=output_dir
+    )
+
     print("\n── Monthly regressor ──")
     all_results["monthly"] = train_monthly_regressor(panel, output_dir=output_dir)
     return all_results
