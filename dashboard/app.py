@@ -588,9 +588,15 @@ elif page == "Summary":
             else:
                 st.info("Train models to see feature importance.")
 
-    notes_card(note_col,
-               "[Replace this with your key takeaways — which features matter most, "
-               "which regions stand out, and anything worth highlighting.]")
+    notes_card(
+    note_col,
+    "This final page summarizes the main project insights: the 12 features that explained "
+    "the most variance in air raid alert activity, along with key oblast-level comparisons. "
+    "The nature of air raid alerts is extremely hard to predict, and realistically, no set "
+    "of public factors can replace classified military information. Still, the experiment "
+    "was interesting because it showed how much can be explored and partially explained "
+    "using only publicly accessible data."
+)
 
     st.markdown("<br>", unsafe_allow_html=True)
     with st.container(border=True):
