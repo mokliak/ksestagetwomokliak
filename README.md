@@ -1,6 +1,6 @@
 # Ukraine Air Raid Alert Analysis
 
-Real alert data, real forecasting models, and a live dashboard — built by an HEC Paris student to find out whether weather, news, and history can actually predict when and where the next air raid alert will hit.
+Real alert data, real forecasting models, and a live dashboard that I have built to find out whether weather, news, and history can actually predict when and where the next air raid alert will hit.
 
 ---
 
