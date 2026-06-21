@@ -64,4 +64,4 @@ Alerts logged under "Kyiv City" and "Kyivska oblast" are merged into one entry �
 
 I'm a student at HEC Paris, and this project is part of my application to a program at KSE. Building it pushed me well past a single notebook — wrangling messy real-world alert data, wiring up multiple live APIs, training and honestly comparing forecasting models against each other, and packaging the whole thing into something anyone can actually open and explore, not just read about. I'd be genuinely thrilled to bring that same curiosity, persistence, and hands-on approach to KSE, and I can't wait for the chance to keep learning and building there.
 
-— Andrii Mokliak, HEC Paris
+— Andrii Mokliak:)
